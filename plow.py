@@ -8,6 +8,7 @@ import random
 import sys
 from struct import pack, unpack
 from random import randint
+from collections import namedtuple
 
 HOST = "8.8.8.8"
 PORT = 53 
@@ -54,15 +55,42 @@ data = None
 
 # Query DNS server
 with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-    print("Sending message to {} on port {}".format(HOST, PORT))
+    print("Sending DNS query to {} on port {}".format(HOST, PORT))
     s.sendto(message, server_address)
 
     data, server = s.recvfrom(1000) 
     rhost, rport = server
     print("Received {} bytes from {}:{}".format(len(data), rhost, rport))
-    print('Closing socket')
     s.close()
 
-print(len(data))
+# unpack base response
+DNSresponse = namedtuple("DNSresponse", "transaction_id flags qdcount ancount nscount arcount name_length")
+base = 13
+response = DNSresponse._make(unpack(">HHHHHHB", data[0:base]))
+name_end = base + response.name_length
 
-print(unpack(">HHHHHH", data[0:12]))
+# get response domain name
+rname = data[base:name_end]
+
+# get tld
+tld_size = unpack(">B", data[name_end:name_end+1])[0]
+tld_start = name_end + 1
+rtld = data[tld_start:tld_start+tld_size]
+
+# combine responses to get response domain
+rdomain = (rname + b"." +  rtld).decode("utf-8")
+
+# unpack response answer 
+DNSanswer = namedtuple("DNSanswer", "name type dnsclass ttl rdlength ip1 ip2 ip3 ip4")
+answer_start = tld_start + tld_size + 7
+ranswer = DNSanswer._make(unpack(">HHHHHBBBB", data[answer_start:answer_start+14]))
+
+# build IPv4 address
+rip = str(ranswer.ip1) + "." + str(ranswer.ip2) + "." + str(ranswer.ip3) + "." + str(ranswer.ip4)
+
+# return ipv4 address
+print("{} - {}".format(rdomain, rip))
+
+
+
+
