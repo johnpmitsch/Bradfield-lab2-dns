@@ -7,8 +7,10 @@ a dig clone for making IPv4 A record DNS requests
 
 requires python3 
 
-`chmod +x ./plow.py` 
-`./plow.py wikipedia.org`
+```
+chmod +x ./plow.py  # make executable
+./plow.py wikipedia.org  # run plow, passing in domain
+```
 
 ```
 Sending DNS query to 8.8.8.8 on port 53
